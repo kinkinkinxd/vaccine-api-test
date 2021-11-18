@@ -2,14 +2,15 @@
 import unittest
 import requests
 import datetime
+from decouple import config
 
-HOST = "https://wcg-apis.herokuapp.com"
+HOST = config('URL')
 DATABASE_URL = HOST + "/citizen"
 URL = HOST + "/registration"
 
 
 def create_citizen(citizen_id, firstname, lastname, birthdate,
-                   occupation, address):
+                   occupation, phone_number, is_risk, address):
     """Create dict of citizen data"""
     return {
         'citizen_id': citizen_id,
@@ -17,6 +18,8 @@ def create_citizen(citizen_id, firstname, lastname, birthdate,
         'surname': lastname,
         'birth_date': birthdate,
         'occupation': occupation,
+        'phone_number': phone_number,
+        'is_risk': is_risk,
         'address': address
     }
 
@@ -30,30 +33,29 @@ class RegistrationTest(unittest.TestCase):
     """Unit tests for Registration API"""
 
     def setUp(self):
-        requests.delete(DATABASE_URL, data=create_citizen("1101101101101", "Tester", "Test", "15 Jan 1990"
-                                                          , "Office worker", "123/123 Test, Demo, Bangkok 10230"))
+        requests.delete(URL + '/' + '1101101101101')
         self.user = create_citizen("1101101101101", "Tester", "Test", "15 Jan 1990"
-                                   , "Office worker", "123/123 Test, Demo, Bangkok 10230")
+                                   , "Office worker", "0957638767", "False", "123/123 Test, Demo, Bangkok 10230")
 
     def test_register(self):
         """Test register success"""
         response = requests.post(URL, data=self.user)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(get_feedback(response), "registration success!")
 
     def test_register_with_missing_attribute(self):
         """test register with missing attribute"""
         test = create_citizen("1101101101102", "Tester", "Test", "15 Jan 1990"
-                              , "", "123/123 Test, Demo, Bangkok 10230")
+                              , "", "0957638767", "False", "123/123 Test, Demo, Bangkok 10230")
         response = requests.post(URL, data=test)
         self.assertEqual(get_feedback(response), "registration failed: missing some attribute")
 
     def test_invalid_citizen_id(self):
         """Test register when citizen id is invalid"""
         test = create_citizen("110110", "Tester2", "Test", "15 Jan 1990", "Office worker",
-                              "123/123 Test, Demo, Bangkok 10230")
+                              "0957638767", "False", "123/123 Test, Demo, Bangkok 10230")
         test2 = create_citizen("abcde", "Tester3", "Test", "1 Feb 1999",
-                               "Student", "124/23 Bakery, Bangkok 10120")
+                               "Student", "0957638768", "False", "124/23 Bakery, Bangkok 10120")
         response = requests.post(URL, data=test)
         response2 = requests.post(URL, data=test2)
         self.assertEqual(get_feedback(response), "registration failed: invalid citizen ID")
@@ -69,14 +71,14 @@ class RegistrationTest(unittest.TestCase):
     def test_invalid_birth_date_format(self):
         """Test register when birth date is invalid format"""
         test = create_citizen("1101101101102", "Tester2", "Test", "12 1999 04", "Office worker",
-                              "123/123 Test, Demo, Bangkok 10230")
+                              "0957638767", "False", "123/123 Test, Demo, Bangkok 10230")
         response = requests.post(URL, data=test)
         self.assertEqual(get_feedback(response), "registration failed: invalid birth date format")
 
     def test_register_with_age_less_than_13(self):
         """Test register when age less than 13"""
         test = create_citizen("1101101101102", "Tester2", "Test", "12-04-2014", "Student",
-                              "123/123 Test, Demo, Bangkok 10230")
+                              "0957638767", "False", "123/123 Test, Demo, Bangkok 10230")
         response = requests.post(URL, data=test)
         self.assertEqual(get_feedback(response), "registration failed: not archived minimum age")
 
